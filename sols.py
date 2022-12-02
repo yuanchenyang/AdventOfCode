@@ -24,12 +24,11 @@ def day_2a(s):
     '''
     p1 = dict(A=0, B=1, C=2)
     p2 = dict(X=0, Y=1, Z=2)
-    # outcomes[p1][p2] = score of result
-    outcomes = [[3, 6, 0],
-                [0, 3, 6],
-                [6, 0, 3]]
-
-    return sum(outcomes[p1[i]][p2[j]] + p2[j] + 1 for i, j in Array(s))
+    # outcome[p1][p2] = score of result
+    outcome = [[3, 6, 0],
+               [0, 3, 6],
+               [6, 0, 3]]
+    return sum(outcome[p1[i]][p2[j]] + p2[j] + 1 for i, j in Array(s))
 
 def day_2b(s):
     '''
