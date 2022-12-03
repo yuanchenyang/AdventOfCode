@@ -26,3 +26,7 @@ def re_tokens(regex, s):
 
 def re_lines(regex, s):
     return [re_tokens(regex, line) for line in s.splitlines()]
+
+def grouped(it, n):
+    '''iterator -> iterator of iterators with groups of size n'''
+    return zip(*[iter(it)]*n)
