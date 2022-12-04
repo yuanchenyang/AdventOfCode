@@ -12,14 +12,17 @@ def Token(t):
         except (ValueError, TypeError):
             return t
 
-def Array(s, split=' '):
-    return [Line(l, split=split) for l in s.splitlines()]
+def Array(s, sep=' '):
+    return [Line(l, sep=sep) for l in s.splitlines()]
 
-def Line(s, split=' '):
-    return [Token(t) for t in s.strip().split(split)]
+def Line(s, sep=' '):
+    return [Token(t) for t in s.strip().split(sep)]
 
 def List(s):
     return [Token(t.strip()) for t in s.splitlines()]
+
+def ListOfList(s, sep='\n\n'):
+    return [List(l) for l in s.split(sep)]
 
 def re_tokens(regex, s):
     return [Token(t) for t in re.match(regex, s).groups()]

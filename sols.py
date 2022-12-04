@@ -5,7 +5,7 @@ from utils import *
 from test_inputs import *
 
 def day_1_input(s):
-    return [sum(List(lst)) for lst in s.split('\n\n')]
+    return [sum(lst) for lst in ListOfList(s)]
 
 def day_1a(s):
     '''
@@ -66,6 +66,31 @@ def day_3b(s):
     '''
     return sum(priorities[(set(a) & set(b) & set(c)).pop()]
                for a, b, c in grouped(List(s), 3))
+
+day_4_regex = '(\d+)-(\d+),(\d+)-(\d+)'
+
+def contains(a1, a2, b1, b2):
+    return a1 <= b1 <= a2 and a1 <= b2 <= a2
+
+def fully_contains(a1, a2, b1, b2):
+    return contains(a1, a2, b1, b2) or contains(b1, b2, a1, a2)
+
+def day_4a(s):
+    '''
+    >>> day_4a(day_4_test_input)
+    2
+    '''
+    return sum(fully_contains(*inputs) for inputs in re_lines(day_4_regex, s))
+
+def overlaps(a1, a2, b1, b2):
+    return not (a2 < b1 or b2 < a1)
+
+def day_4b(s):
+    '''
+    >>> day_4b(day_4_test_input)
+    4
+    '''
+    return sum(overlaps(*inputs) for inputs in re_lines(day_4_regex, s))
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
