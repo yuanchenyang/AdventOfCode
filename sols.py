@@ -120,6 +120,26 @@ def day_5b(s):
     '''
     return day_5_common(s, preprocess=reversed)
 
+def day_6_common(s, n):
+    s = s.strip()
+    for i, seq in enumerate(zip(*[s[i:] for i in range(n)])):
+        if len(set(seq)) == n:
+            return i + n
+
+def day_6a(s):
+    '''
+    >>> [day_6a(s) for s in day_6_test_input.splitlines()]
+    [7, 5, 6, 10, 11]
+    '''
+    return day_6_common(s, 4)
+
+def day_6b(s):
+    '''
+    >>> [day_6b(s) for s in day_6_test_input.splitlines()]
+    [19, 23, 23, 29, 26]
+    '''
+    return day_6_common(s, 14)
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
