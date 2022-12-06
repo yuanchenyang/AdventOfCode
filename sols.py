@@ -95,7 +95,7 @@ def day_4b(s):
 
 day_5_regex = 'move (\d+) from (\d) to (\d)'
 
-def day_5_common(s, reverse):
+def day_5_common(s, preprocess):
     stacks, instructions = s.split('\n\n')
     rows = reversed(stacks.splitlines())
     crates = {int(line[0]): list(filter(str.isupper, line))
@@ -103,8 +103,7 @@ def day_5_common(s, reverse):
               if line[0].isdigit()}
 
     for num, src, dest in re_lines(day_5_regex, instructions):
-        removed = [crates[src].pop() for _ in range(num)]
-        crates[dest].extend(reversed(removed) if reverse else removed)
+        crates[dest].extend(preprocess([crates[src].pop() for _ in range(num)]))
     return ''.join(crates[i].pop() for i in sorted(crates))
 
 def day_5a(s):
@@ -112,14 +111,14 @@ def day_5a(s):
     >>> day_5a(day_5_test_input)
     'CMZ'
     '''
-    return day_5_common(s, reverse=False)
+    return day_5_common(s, preprocess=lambda x:x)
 
 def day_5b(s):
     '''
     >>> day_5b(day_5_test_input)
     'MCD'
     '''
-    return day_5_common(s, reverse=True)
+    return day_5_common(s, preprocess=reversed)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
