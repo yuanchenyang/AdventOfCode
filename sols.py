@@ -121,7 +121,6 @@ def day_5b(s):
     return day_5_common(s, preprocess=reversed)
 
 def day_6_common(s, n):
-    s = s.strip()
     for i, seq in enumerate(zip(*[s[i:] for i in range(n)])):
         if len(set(seq)) == n:
             return i + n
