@@ -139,6 +139,52 @@ def day_6b(s):
     '''
     return day_6_common(s, 14)
 
+class Dir:
+    def __init__(self, parent=None):
+        self.parent = parent
+        self.size = 0
+        self.contents = {}
+
+    def add_file(self, name, size):
+        cur = self
+        while cur != None:
+            cur.size += size
+            cur = cur.parent
+
+def day_7_parse(s):
+    cur = Dir()
+    dirs = [cur]
+    for command in s.strip().split('\n$ ')[1:]:
+        match Array(command):
+            case [['ls'], *rest]:
+                for info, name in rest:
+                    if info == 'dir':
+                        cur.contents[name] = Dir(cur)
+                        dirs.append(cur.contents[name])
+                    else:
+                        cur.add_file(name, info)
+            case [['cd', '..']]:
+                cur = cur.parent
+            case [['cd', d]]:
+                cur = cur.contents[d]
+    return dirs
+
+def day_7a(s):
+    '''
+    >>> day_7a(day_7_test_input)
+    95437
+    '''
+    return sum(d.size for d in day_7_parse(s) if d.size < 100000)
+
+def day_7b(s):
+    '''
+    >>> day_7b(day_7_test_input)
+    24933642
+    '''
+    sizes = [d.size for d in day_7_parse(s)]
+    unused = 70000000 - sizes[0]
+    return min(filter(lambda x: x + unused >= 30000000, sizes))
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
