@@ -185,6 +185,37 @@ def day_7b(s):
     unused = 70000000 - sizes[0]
     return min(filter(lambda x: x + unused >= 30000000, sizes))
 
+def day_8_common(s):
+    grid = Grid(s)
+    def iterdir(x, y, dx, dy):
+        while (x := x+dx, y := y+dy) in grid:
+            yield grid[y][x]
+    return grid, iterdir
+
+def day_8a(s):
+    '''
+    >>> day_8a(day_8_test_input)
+    21
+    '''
+    grid, iterdir = day_8_common(s)
+    return len(set((x, y) for x in range(grid.xlen) for y in range(grid.ylen)
+                          for dx, dy in cardinal_dirs
+                          if all(grid[y][x] > e for e in iterdir(x, y, dx, dy))))
+
+def day_8b(s):
+    '''
+    >>> day_8b(day_8_test_input)
+    8
+    '''
+    grid, iterdir = day_8_common(s)
+    def see(e, lst):
+        for i in lst:
+            yield i
+            if i >= e: break
+    return max(prod(llen(see(grid[y][x], iterdir(x, y, dx, dy)))
+                    for dx, dy in cardinal_dirs)
+               for x in range(grid.xlen) for y in range(grid.ylen))
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
