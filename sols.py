@@ -238,6 +238,40 @@ def day_8b(s):
                     for dx, dy in cardinal_dirs)
                for x in range(grid.xlen) for y in range(grid.ylen))
 
+def day_9_common(s, k):
+    rope = [Point(0, 0) for _ in range(k)]
+    deltas = dict(zip('RLUD', cardinal_dirs))
+    visited = set([rope[-1]])
+
+    def follow(H, T):
+        if linf_dist(T, H) > 1:
+            T += min(all_dirs, key=lambda x: l1_dist(T + x, H))
+        return T
+
+    for d, n in Array(s):
+        for _ in range(n):
+            rope[0] += deltas[d]
+            for i in range(1,k):
+                rope[i] = follow(rope[i-1], rope[i])
+            visited.add(rope[-1])
+    return len(visited)
+
+def day_9a(s):
+    '''
+    >>> day_9a(day_9_test_input)
+    13
+    '''
+    return day_9_common(s, 2)
+
+def day_9b(s):
+    '''
+    >>> day_9b(day_9_test_input)
+    1
+    >>> day_9b(day_9_test_input2)
+    36
+    '''
+    return day_9_common(s, 10)
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
