@@ -4,7 +4,6 @@ from operator import mul
 
 letters = 'abcdefghijklmnopqrstuvwxyz'
 upper_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-cardinal_dirs = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
 class Grid:
     def __init__(self, s):
@@ -18,6 +17,30 @@ class Grid:
     def __contains__(self, p):
         x, y = p
         return x in range(self.xlen) and y in range(self.ylen)
+
+class Point(tuple):
+    def __new__(self, *args):
+        return super().__new__(self, args)
+    #def __init__(self, *args):
+    #    self._p = tuple(args)
+    def __add__(self, other):
+        return Point(*[s + o for s, o in zip(self,other)])
+    def __neg__(self):
+        return Point(*[-s for s in self])
+    def __sub__(self, other):
+        return self + (-other)
+    def __repr__(self):
+        return 'Point' + super().__repr__()
+
+cardinal_dirs = [Point(0, 1), Point(0, -1), Point(1,  0), Point(-1,  0)]
+ordinal_dirs =  [Point(1, 1), Point(1, -1), Point(-1, 1), Point(-1, -1)]
+all_dirs = cardinal_dirs + ordinal_dirs
+
+def l1_dist(x, y):
+    return sum(abs(i) for i in (x-y))
+
+def linf_dist(x, y):
+    return max(abs(i) for i in (x-y))
 
 def Token(t):
     try:
