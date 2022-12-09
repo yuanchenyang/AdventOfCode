@@ -1,6 +1,8 @@
 import doctest
 import sys
-from itertools import zip_longest
+from math import prod
+from itertools import zip_longest, pairwise, takewhile
+from operator import *
 
 from utils import *
 from test_inputs import *
@@ -111,7 +113,7 @@ def day_5a(s):
     >>> day_5a(day_5_test_input)
     'CMZ'
     '''
-    return day_5_common(s, preprocess=lambda x:x)
+    return day_5_common(s, preprocess=iden)
 
 def day_5b(s):
     '''
@@ -184,6 +186,26 @@ def day_7b(s):
     sizes = [d.size for d in day_7_parse(s)]
     unused = 70000000 - sizes[0]
     return min(filter(lambda x: x + unused >= 30000000, sizes))
+
+def day_8a_n_squared(s):
+    ''' O(N^2) implementation, but doesn't generalize to 8b
+    >>> day_8a_n_squared(day_8_test_input)
+    21
+    '''
+    def visrow(row):
+        tallest = -1
+        for i, n in enumerate(row):
+            if n > tallest:
+                yield i
+                tallest = n
+    S = Grid(s).grid
+    n = len(S)-1
+    transforms = [(iden, (lambda i, j: (i, j))),
+                  (transpose, (lambda i, j: (j, i))),
+                  (flip, (lambda i, j: (i, n-j))),
+                  (transflip, (lambda i, j: (n-j, i)))]
+    return len(set(g(i, j) for f, g in transforms
+                   for i, row in enumerate(f(S)) for j in visrow(row)))
 
 def day_8_common(s):
     grid = Grid(s)

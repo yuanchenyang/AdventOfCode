@@ -53,5 +53,13 @@ def grouped(seq, n):
 def llen(seq):
     return len(list(seq))
 
-def prod(seq):
-    return reduce(mul, seq)
+def transpose(grid):
+    return list(zip(*grid))
+
+def flip(grid):
+    return [list(reversed(row)) for row in grid]
+
+def transflip(grid):
+    return flip(transpose(grid))
+
+iden = lambda x: x
