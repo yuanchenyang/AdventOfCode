@@ -1,7 +1,7 @@
 import doctest
 import sys
 from math import prod
-from itertools import zip_longest, pairwise, takewhile
+from itertools import zip_longest, pairwise, takewhile, islice
 from operator import *
 
 from utils import *
@@ -239,7 +239,7 @@ def day_8b(s):
                for x in range(grid.xlen) for y in range(grid.ylen))
 
 def day_9_common(s, k):
-    rope = [Point(0, 0) for _ in range(k)]
+    rope = [Point(0, 0)] * k
     deltas = dict(zip('RLUD', cardinal_dirs))
     visited = set([rope[-1]])
 
@@ -271,6 +271,36 @@ def day_9b(s):
     36
     '''
     return day_9_common(s, 10)
+
+def day_10_common(s):
+    X = 1
+    for row in Array(s):
+        yield X
+        if row[0] == 'addx':
+            yield X
+            X += row[1]
+
+def day_10a(s):
+    '''
+    >>> day_10a(day_10_test_input)
+    13140
+    '''
+    return sum((i+1) * n for i, n in islice(enumerate(day_10_common(s)), 19, None, 40))
+
+def day_10b(s):
+    '''
+    >>> day_10b(day_10_test_input)
+    ##..##..##..##..##..##..##..##..##..##..
+    ###...###...###...###...###...###...###.
+    ####....####....####....####....####....
+    #####.....#####.....#####.....#####.....
+    ######......######......######......####
+    #######.......#######.......#######.....
+    '''
+    seq = grouped(('#' if abs(i%40 - n) < 2 else '.'
+                   for i, n in enumerate(day_10_common(s))),
+                  40)
+    print('\n'.join(''.join(line) for line in seq))
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
