@@ -1,5 +1,8 @@
 import doctest
 import sys
+
+from tqdm import tqdm
+from dataclasses import dataclass
 from math import prod
 from itertools import zip_longest, pairwise, takewhile, islice
 from operator import *
@@ -22,7 +25,7 @@ def day_1b(s):
     >>> day_1b(day_1_test_input)
     45000
     '''
-    return sum(sorted(day_1_input(s))[-3:])
+    return sum(topk(day_1_input(s), 3))
 
 def day_2a(s):
     '''
@@ -301,6 +304,48 @@ def day_10b(s):
                    for i, n in enumerate(day_10_common(s))),
                   40)
     print('\n'.join(''.join(line) for line in seq))
+
+day_11_re = '''Monkey (\d+):
+  Starting items: (.*)
+  Operation: new = (.*)
+  Test: divisible by (\d+)
+    If true: throw to monkey (\d+)
+    If false: throw to monkey (\d+)'''
+
+@dataclass
+class Monkey:
+    items: list[int]
+    op: str
+    test: int
+    dest: tuple[int]
+    inspected: int=0
+
+def day_11_common(s, n, div):
+    monkeys = [Monkey(Line(l, ', '), op, test, (t, f))
+               for _, l, op, test, t, f in re_lines(day_11_re, s)]
+    lcm = prod(m.test for m in monkeys)
+    for _ in tqdm(range(n)):
+        for m in monkeys:
+            for old in m.items:
+                m.inspected += 1
+                new = (eval(m.op, globals(), locals()) // div) % lcm
+                monkeys[m.dest[new % m.test != 0]].items.append(new)
+            m.items = []
+    return prod(topk([m.inspected for m in monkeys], 2))
+
+def day_11a(s):
+    '''
+    >>> day_11a(day_11_test_input)
+    10605
+    '''
+    return day_11_common(s, 20, 3)
+
+def day_11b(s):
+    '''
+    >>> day_11b(day_11_test_input)
+    2713310158
+    '''
+    return day_11_common(s, 10000, 1)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

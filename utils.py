@@ -18,6 +18,15 @@ class Grid:
         x, y = p
         return x in range(self.xlen) and y in range(self.ylen)
 
+def transpose(grid):
+    return list(zip(*grid))
+
+def flip(grid):
+    return [list(reversed(row)) for row in grid]
+
+def transflip(grid):
+    return flip(transpose(grid))
+
 class Point(tuple):
     def __new__(self, *args):
         return super().__new__(self, args)
@@ -55,7 +64,7 @@ def Array(s, sep=' '):
     return [Line(l, sep=sep) for l in s.splitlines()]
 
 def Line(s, sep=' '):
-    return [Token(t) for t in s.strip().split(sep)]
+    return [Token(t) for t in str(s).strip().split(sep)]
 
 def List(s):
     return [Token(t.strip()) for t in s.splitlines()]
@@ -63,11 +72,8 @@ def List(s):
 def ListOfList(s, sep='\n\n'):
     return [List(l) for l in s.split(sep)]
 
-def re_tokens(regex, s):
-    return [Token(t) for t in re.match(regex, s).groups()]
-
 def re_lines(regex, s):
-    return [re_tokens(regex, line) for line in s.splitlines()]
+    return [[Token(t) for t in match.groups()] for match in re.finditer(regex, s)]
 
 def grouped(seq, n):
     '''iterator -> iterator of iterators with groups of size n'''
@@ -76,13 +82,7 @@ def grouped(seq, n):
 def llen(seq):
     return len(list(seq))
 
-def transpose(grid):
-    return list(zip(*grid))
-
-def flip(grid):
-    return [list(reversed(row)) for row in grid]
-
-def transflip(grid):
-    return flip(transpose(grid))
+def topk(seq, k):
+    return sorted(seq)[-k:]
 
 iden = lambda x: x
