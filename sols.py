@@ -3,7 +3,8 @@ import sys
 
 from dataclasses import dataclass
 from math import prod
-from itertools import zip_longest, pairwise, takewhile, islice
+from itertools import zip_longest, pairwise, takewhile, islice, starmap
+from functools import cmp_to_key
 from collections import deque
 from operator import *
 
@@ -376,6 +377,37 @@ def day_12b(s):
     29
     '''
     return day_12_common(s, 'Sa')
+
+def cmp(l1, l2):
+    return 0 if l1 == l2 else -1 if l1 < l2 else 1
+
+def compare(l1, l2):
+    match (l1, l2):
+        case (int(), int()):  return cmp(l1, l2)
+        case (int(), list()): return compare([l1], l2)
+        case (list(), int()): return compare(l1, [l2])
+        case (list(), list()):
+            for c in starmap(compare, zip(l1, l2)):
+                if c != 0: return c
+            return cmp(len(l1), len(l2))
+
+def day_13a(s):
+    '''
+    >>> day_13a(day_13_test_input)
+    13
+    '''
+    res = [compare(*map(eval, lst)) for lst in ListOfList(s)]
+    return sum(i for i, r in enumerate(res, 1) if r == -1)
+
+def day_13b(s):
+    '''
+    >>> day_13b(day_13_test_input)
+    140
+    '''
+    anchors = [[[2]], [[6]]]
+    res = sorted([eval(l) for l in List(s.replace('\n\n', '\n'))] + anchors,
+                 key=cmp_to_key(compare))
+    return prod(i for i, l in enumerate(res, 1) if l in anchors)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
