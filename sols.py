@@ -1,10 +1,10 @@
 import doctest
 import sys
 
-from tqdm import tqdm
 from dataclasses import dataclass
 from math import prod
 from itertools import zip_longest, pairwise, takewhile, islice
+from collections import deque
 from operator import *
 
 from utils import *
@@ -324,7 +324,7 @@ def day_11_common(s, n, div):
     monkeys = [Monkey(Line(l, ', '), op, test, (t, f))
                for _, l, op, test, t, f in re_lines(day_11_re, s)]
     lcm = prod(m.test for m in monkeys)
-    for _ in tqdm(range(n)):
+    for _ in range(n):
         for m in monkeys:
             for old in m.items:
                 m.inspected += 1
@@ -346,6 +346,36 @@ def day_11b(s):
     2713310158
     '''
     return day_11_common(s, 10000, 1)
+
+def day_12_common(s, frontier):
+    g = Grid(s)
+    elev = dict(zip(letters, range(26))) | dict(S=0, E=25)
+    to_visit = deque((p, 0) for p, elem in g.iter_points() if elem in frontier)
+    visited = set(map(first, to_visit))
+
+    while len(to_visit) != 0:
+        cur, n = to_visit.popleft()
+        if g.get(cur) == 'E':
+            return n
+        for new in [cur + d for d in cardinal_dirs]:
+            if new in g and new not in visited and \
+               elev[g.get(new)] <= elev[g.get(cur)] + 1:
+                visited.add(new)
+                to_visit.append((new, n+1))
+
+def day_12a(s):
+    '''
+    >>> day_12a(day_12_test_input)
+    31
+    '''
+    return day_12_common(s, 'S')
+
+def day_12b(s):
+    '''
+    >>> day_12b(day_12_test_input)
+    29
+    '''
+    return day_12_common(s, 'Sa')
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

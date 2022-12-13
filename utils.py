@@ -14,6 +14,15 @@ class Grid:
     def __getitem__(self, i):
         return self.grid[i]
 
+    def get(self, p):
+        x, y = p
+        return self.grid[y][x]
+
+    def iter_points(self):
+        for x in range(self.xlen):
+            for y in range(self.ylen):
+                yield Point(x, y), self.grid[y][x]
+
     def __contains__(self, p):
         x, y = p
         return x in range(self.xlen) and y in range(self.ylen)
@@ -30,8 +39,6 @@ def transflip(grid):
 class Point(tuple):
     def __new__(self, *args):
         return super().__new__(self, args)
-    #def __init__(self, *args):
-    #    self._p = tuple(args)
     def __add__(self, other):
         return Point(*[s + o for s, o in zip(self,other)])
     def __neg__(self):
@@ -84,5 +91,11 @@ def llen(seq):
 
 def topk(seq, k):
     return sorted(seq)[-k:]
+
+def first(pair):
+    return pair[0]
+
+def second(pair):
+    return pair[1]
 
 iden = lambda x: x
