@@ -3,7 +3,7 @@ import sys
 
 from dataclasses import dataclass
 from math import prod
-from itertools import zip_longest, pairwise, takewhile, islice, starmap
+from itertools import zip_longest, pairwise, takewhile, islice, starmap, chain
 from functools import cmp_to_key
 from collections import deque
 from operator import *
@@ -383,9 +383,9 @@ def cmp(l1, l2):
 
 def compare(l1, l2):
     match (l1, l2):
-        case (int(), int()):  return cmp(l1, l2)
-        case (int(), list()): return compare([l1], l2)
-        case (list(), int()): return compare(l1, [l2])
+        case (int() , int() ): return cmp(l1, l2)
+        case (int() , list()): return compare([l1], l2)
+        case (list(), int() ): return compare(l1, [l2])
         case (list(), list()):
             for c in starmap(compare, zip(l1, l2)):
                 if c != 0: return c
@@ -405,7 +405,7 @@ def day_13b(s):
     140
     '''
     anchors = [[[2]], [[6]]]
-    res = sorted([eval(l) for l in List(s.replace('\n\n', '\n'))] + anchors,
+    res = sorted([eval(l) for l in chain(*ListOfList(s))] + anchors,
                  key=cmp_to_key(compare))
     return prod(i for i, l in enumerate(res, 1) if l in anchors)
 
