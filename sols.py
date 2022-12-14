@@ -406,6 +406,41 @@ def day_13b(s):
                  key=cmp_to_key(compare))
     return prod(i for i, l in enumerate(res, 1) if l in anchors)
 
+def day_14_common(s, offset, stop):
+    g = set(Point(x, y)
+            for path in s.strip().split('\n')
+            for (x1,y1), (x2,y2) in map(sorted, pairwise(re_lines('(\d+),(\d+)', path)))
+            for x in range(x1, x2+1) for y in range(y1, y2+1))
+    priority = [Point(0, 1), Point(-1, 1), Point(1, 1)]
+    bottom = max(y for x, y in g) + offset
+
+    def fall():
+        cur = Point(500, 0)
+        for _ in range(bottom):
+            move = [cur + dx for dx in priority if cur + dx not in g]
+            if len(move) == 0: break
+            cur = move[0]
+        return cur if stop(cur, bottom) else None
+
+    start = len(g)
+    while (rest := fall()) is not None:
+        g.add(rest)
+    return len(g) - start
+
+def day_14a(s):
+    '''
+    >>> day_14a(day_14_test_input)
+    24
+    '''
+    return day_14_common(s, 0, lambda cur, bottom: cur[1] < bottom)
+
+def day_14b(s):
+    '''
+    >>> day_14b(day_14_test_input)
+    93
+    '''
+    return day_14_common(s, 1, lambda cur, bottom: cur != Point(500, 0)) + 1
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
