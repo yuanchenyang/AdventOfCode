@@ -1,6 +1,6 @@
+# Standard Library
 import doctest
 import sys
-
 from dataclasses import dataclass
 from math import prod
 from itertools import zip_longest, pairwise, takewhile, islice, starmap, chain
@@ -8,6 +8,11 @@ from functools import cmp_to_key
 from collections import deque
 from operator import *
 
+# Other Libraries
+from sympy import Interval, Union
+from z3 import Int, Solver, And, Or
+
+# Local Imports
 from utils import *
 from test_inputs import *
 
@@ -440,6 +445,40 @@ def day_14b(s):
     93
     '''
     return day_14_common(s, 1, lambda cur, bottom: cur != Point(500, 0)) + 1
+
+day_15_regex = 'Sensor at x=([-\d]+), y=([-\d]+): closest beacon is at x=([-\d]+), y=([-\d]+)'
+
+def day_15_common(s, delta):
+    S = {Point(sx, sy): Point(bx, by)
+         for sx, sy, bx, by in re_lines(day_15_regex, s)}
+    return {si: l1_dist(si, bi) + delta(si) for si, bi in S.items()}
+
+def day_15a(s, y=2000000):
+    '''
+    >>> day_15a(day_15_test_input, y=10)
+    26
+    '''
+    intervals = [Interval(si[0] - r, si[0] + r)
+                 for si, r in day_15_common(s, lambda x: -abs(x[1] - y)).items()
+                 if r > 0]
+    return Union(*intervals).measure
+
+def day_15b(s, limit=4000000):
+    '''
+    >>> day_15b(day_15_test_input, limit=20)
+    56000011
+    '''
+    sensors = day_15_common(s, lambda x: 0)
+    x, y = Int('x'), Int('y')
+    s = Solver()
+    s.add(x >= 0, y >= 0, x <= limit, y <= limit)
+    for (sx, sy), d in sensors.items():
+        s.add(Or(   (x-sx) + (y-sy) > d
+                 , -(x-sx) - (y-sy) > d
+                 ,  (x-sx) - (y-sy) > d
+                 , -(x-sx) + (y-sy) > d))
+    s.check()
+    return s.model().evaluate(x*4000000 + y)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
