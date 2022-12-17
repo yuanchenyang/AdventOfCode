@@ -4,8 +4,8 @@ import sys
 from dataclasses import dataclass
 from math import prod
 from itertools import zip_longest, pairwise, takewhile, islice, starmap, chain
-from functools import cmp_to_key
-from collections import deque
+from functools import cmp_to_key, cache
+from collections import deque, namedtuple
 from operator import *
 
 # Other Libraries
@@ -479,6 +479,94 @@ def day_15b(s, limit=4000000):
                  , -(x-sx) + (y-sy) > d))
     s.check()
     return s.model().evaluate(x*4000000 + y)
+
+day_16_regex = 'Valve (\w\w) has flow rate=(\d+); tunnels* leads* to valves* ([\w, ]+)'
+Node = namedtuple('Node', ('rate', 'dests'))
+
+def day_16_common(s):
+    nodes = {src: Node(rate, tunnels.split(', '))
+             for src, rate, tunnels in re_lines(day_16_regex, s)}
+    init = frozenset(label for label, node in nodes.items() if node.rate > 0)
+    return nodes, init
+
+def day_16a(s):
+    '''
+    >>> day_16a(day_16_test_input)
+    1651
+    '''
+    nodes, init = day_16_common(s)
+    @cache
+    def solve(cur, time, off):
+        if time == 0 or len(off) == 0:
+            return 0
+        sols = [solve(dest, time-1, off) for dest in nodes[cur].dests]
+        if cur in off:
+            sols.append((time - 1) * nodes[cur].rate
+                        + solve(cur, time - 1, off - set([cur])))
+        return max(sols)
+    return solve('AA', 30, init)
+
+def day_16b(s):
+    '''
+    >>> day_16b(day_16_test_input)
+    1707
+    '''
+    nodes, init = day_16_common(s)
+    @cache
+
+    def solve(cur, ele, time, off):
+        if time == 0 or len(off) == 0:
+            return 0
+        sols = [solve(cd, ed, time-1, off, cur, ele)
+                for cd in nodes[cur].dests for ed in nodes[ele].dests]
+        match cur in off, ele in off:
+            case True, True:
+                S = set([cur, ele])
+                sols.append((time - 1) * sum(nodes[v].rate for v in S) + \
+                            solve(cur, ele, time-1, off - S))
+            case True, False:
+                sols.extend((time - 1) * nodes[cur].rate \
+                            + solve(cur, ed, time-1, off - set([cur]))
+                                  for ed in nodes[ele].dests)
+            case False, True:
+                sols.extend((time - 1) * nodes[ele].rate \
+                            + solve(cd, ele, time-1, off - set([ele]))
+                                  for cd in nodes[cur].dests)
+        return max(sols)
+    return solve('AA', 'AA', 26, init)
+
+def prune(dests, it):
+    return [d for d in dests if d != it]
+
+def day_16b(s):
+    '''
+    >>> day_16b(day_16_test_input)
+    1707
+    '''
+    nodes, init = day_16_common(s)
+
+    @cache
+    def solve(cur, ele, cprev, eprev, time, off):
+        if time == 0 or len(off) == 0:
+            return 0
+        sols = [solve(cd, ed, cur, ele, time-1, off)
+                for cd in prune(nodes[cur].dests, cprev)
+                for ed in prune(nodes[ele].dests, eprev)]
+        match cur in off, ele in off:
+            case True, True:
+                S = set([cur, ele])
+                sols.append((time - 1) * sum(nodes[v].rate for v in S) + \
+                            solve(cur, ele, cur, ele, time-1, off - S))
+            case True, False:
+                sols.extend((time - 1) * nodes[cur].rate \
+                            + solve(cur, ed, cur, ele, time-1, off - set([cur]))
+                                  for ed in prune(nodes[ele].dests, eprev))
+            case False, True:
+                sols.extend((time - 1) * nodes[ele].rate \
+                            + solve(cd, ele, cur, ele, time-1, off - set([ele]))
+                                  for cd in prune(nodes[cur].dests, cprev))
+        return max(sols) if len(sols) > 0 else 0
+    return solve('AA', 'AA', 'AA', 'AA', 26, init)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
