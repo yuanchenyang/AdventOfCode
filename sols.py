@@ -3,7 +3,7 @@ import doctest
 import sys
 from dataclasses import dataclass
 from math import prod
-from itertools import zip_longest, pairwise, takewhile, islice, starmap, chain
+from itertools import zip_longest, pairwise, takewhile, islice, starmap, chain, cycle
 from functools import cmp_to_key, cache
 from collections import deque, namedtuple
 from operator import *
@@ -15,6 +15,7 @@ from z3 import Int, Solver, And, Or
 # Local Imports
 from utils import *
 from test_inputs import *
+P = Point
 
 def day_1_input(s):
     return [sum(lst) for lst in ListOfList(s)]
@@ -248,7 +249,7 @@ def day_8b(s):
                for x in range(grid.xlen) for y in range(grid.ylen))
 
 def day_9_common(s, k):
-    rope = [Point(0, 0)] * k
+    rope = [P(0, 0)] * k
     deltas = dict(zip('RLUD', cardinal_dirs))
     visited = set([rope[-1]])
 
@@ -412,15 +413,15 @@ def day_13b(s):
     return prod(i for i, l in enumerate(res, 1) if l in anchors)
 
 def day_14_common(s, offset, stop):
-    g = set(Point(x, y)
+    g = set(P(x, y)
             for path in s.strip().split('\n')
             for (x1,y1), (x2,y2) in map(sorted, pairwise(re_lines('(\d+),(\d+)', path)))
             for x in range(x1, x2+1) for y in range(y1, y2+1))
-    priority = [Point(0, 1), Point(-1, 1), Point(1, 1)]
+    priority = [P(0, 1), P(-1, 1), P(1, 1)]
     bottom = max(y for x, y in g) + offset
 
     def fall():
-        cur = Point(500, 0)
+        cur = P(500, 0)
         for _ in range(bottom):
             move = [cur + dx for dx in priority if cur + dx not in g]
             if len(move) == 0: break
@@ -444,12 +445,12 @@ def day_14b(s):
     >>> day_14b(day_14_test_input)
     93
     '''
-    return day_14_common(s, 1, lambda cur, bottom: cur != Point(500, 0)) + 1
+    return day_14_common(s, 1, lambda cur, bottom: cur != P(500, 0)) + 1
 
 day_15_regex = 'Sensor at x=([-\d]+), y=([-\d]+): closest beacon is at x=([-\d]+), y=([-\d]+)'
 
 def day_15_common(s, delta):
-    S = {Point(sx, sy): Point(bx, by)
+    S = {P(sx, sy): P(bx, by)
          for sx, sy, bx, by in re_lines(day_15_regex, s)}
     return {si: l1_dist(si, bi) + delta(si) for si, bi in S.items()}
 
@@ -567,6 +568,64 @@ def day_16b(s):
                                   for cd in prune(nodes[cur].dests, cprev))
         return max(sols) if len(sols) > 0 else 0
     return solve('AA', 'AA', 'AA', 'AA', 26, init)
+
+def day_17_common(s, n, n_history=100):
+    blocks = cycle(enumerate([(P(0, 0), P(1, 0), P(2, 0), P(3, 0))
+                             ,(P(1, 0), P(0, 1), P(1, 1), P(1, 2), P(2, 1))
+                             ,(P(0, 0), P(1, 0), P(2, 0), P(2, 1), P(2, 2))
+                             ,(P(0, 0), P(0, 1), P(0, 2), P(0, 3))
+                             ,(P(0, 0), P(1, 0), P(0, 1), P(1, 1))]))
+    dx = {'>': P(1, 0), '<': P(-1, 0)}
+
+    def drop():
+        grid = set()
+        update = lambda p, cur: tuple(c + p for c in cur)
+        valid = lambda block: all(p not in grid and p[1] >= 0 and 0 <= p[0] <= 6
+                                  for p in block)
+        cur = update(P(2, 3), next(blocks)[1])
+        bottom = -1
+        for i, c in cycle(enumerate(s.strip())):
+            if valid(shift := update(dx[c], cur)):
+                cur = shift
+            if valid(down := update(P(0, -1), cur)):
+                cur = down
+            else:
+                grid.update(cur)
+                db = max(py for px, py in grid) - bottom
+                j, block = next(blocks)
+                yield i, j, db
+                bottom += db
+                cur = update(P(2, bottom + 4), block)
+
+    ## Following suffices for part a
+    # return sum(db for _, _, db in islice(drop(), n))
+
+    history, states = [], {}
+    for i, j, db in drop():
+        history.append(db)
+        if (state := (i, j, tuple(history[-n_history:]))) in states:
+            break
+        states[state] = None # Using dict as ordered set
+
+    prefix = list(states).index(state)
+    l = len(states) - prefix
+    d, r = (n-prefix) // l, (n-prefix) % l
+    head, repeat = history[:prefix], history[prefix:-1]
+    return sum(head) + d * sum(repeat) + sum(repeat[:r])
+
+def day_17a(s):
+    '''
+    >>> day_17a(day_17_test_input)
+    3068
+    '''
+    return day_17_common(s, 2022)
+
+def day_17b(s):
+    '''
+    >>> day_17b(day_17_test_input)
+    1514285714288
+    '''
+    return day_17_common(s, 1000000000000)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
