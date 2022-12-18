@@ -627,6 +627,46 @@ def day_17b(s):
     '''
     return day_17_common(s, 1000000000000)
 
+def day_18_common(s):
+    dirs = [P(-1,0,0), P(1,0,0), P(0,-1,0), P(0,1,0), P(0,0,-1), P(0,0,1)]
+    points = set(P(*line) for line in Array(s, ','))
+    return dirs, points
+
+def day_18a(s):
+    '''
+    >>> day_18a(day_18_test_input)
+    64
+    '''
+    dirs, points = day_18_common(s)
+    return sum(1 for p in points for d in dirs if p + d not in points)
+
+def day_18b(s):
+    '''
+    >>> day_18b(day_18_test_input)
+    58
+    '''
+    dirs, points = day_18_common(s)
+    def dfs(start, limit):
+        visited = set()
+        to_visit = [(start, 0)]
+        while len(to_visit) > 0:
+            cur, dist = to_visit.pop()
+            if dist > limit:
+                return False
+            visited.add(cur)
+            for d in dirs:
+                n = cur + d
+                if n not in visited and n not in points:
+                    to_visit.append((n, dist+1))
+        return visited
+
+    adjacent = set(p + d for p in points for d in dirs)
+    interior = set(points)
+    for p in adjacent:
+        if p not in interior and (visited := dfs(p, len(points))):
+            interior.update(visited)
+    return sum(1 for p in points for d in dirs if p + d not in interior)
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
