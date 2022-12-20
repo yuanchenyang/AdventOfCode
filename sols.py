@@ -696,7 +696,7 @@ def day_19_common(lst, time):
         while len(states) > 0:
             n += 1
             if n % 100000 == 0:
-                print(n, best)
+                print(n, best, states)
             if n == 30000000:
                 break
             cur = states.pop()
@@ -723,7 +723,7 @@ def day_19_common(lst, time):
                         ._replace(r_or = S.r_or + 1)
             times['end'] = update(S)
 
-            for key in ('ob', 'ge', 'cl', 'or', 'end'):
+            for key in ('ob', 'cl', 'or', 'ge', 'end'):
                 if key in times:
                     states.append(times[key])
         yield best
@@ -741,6 +741,32 @@ def day_19b(s):
     >>> day_19b(day_19_test_input)
     '''
     return prod(day_19_common(re_lines(day_19_regex, s)[:3], 32))
+
+def day_20_common(s, mul, times):
+    lst = [(c*mul, i) for i, c in enumerate(List(s))]
+    order = lst[:]
+    for _ in range(times):
+        for c in order:
+            i = lst.index(c)
+            lst = lst[i+1:] + lst[:i]
+            j = c[0] % len(lst)
+            lst = lst[:j] + [c] + lst[j:]
+    return sum(lst[i][0] for d in (1000, 2000, 3000) for i in range(len(lst))
+               if lst[(i-d) % len(lst)][0] == 0)
+
+def day_20a(s):
+    '''
+    >>> day_20a(day_20_test_input)
+    3
+    '''
+    return day_20_common(s, 1, 1)
+
+def day_20b(s):
+    '''
+    >>> day_20b(day_20_test_input)
+    1623178306
+    '''
+    return day_20_common(s, 811589153, 10)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
