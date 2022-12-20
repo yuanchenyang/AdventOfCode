@@ -667,6 +667,81 @@ def day_18b(s):
             interior.update(visited)
     return sum(1 for p in points for d in dirs if p + d not in interior)
 
+day_19_regex = 'Blueprint (\d+): Each ore robot costs (\d+) ore. '\
+'Each clay robot costs (\d+) ore. Each obsidian robot costs (\d+) ore and (\d+) clay. '\
+'Each geode robot costs (\d+) ore and (\d+) obsidian.'
+
+State = namedtuple(
+    'State',
+    ['t',                            # timestep
+     'n_or', 'n_cl', 'n_ob', 'n_ge', # no. of each resource at end of timestep t
+     'r_or', 'r_cl', 'r_ob', 'r_ge'  # no. of robots at end of timestep t
+     ],
+    defaults = [0]*8
+)
+
+def day_19_common(lst, time):
+    update = lambda s: s._replace(t = s.t - 1,
+                                  n_or = s.n_or + s.r_or, n_cl = s.n_cl + s.r_cl,
+                                  n_ob = s.n_ob + s.r_ob, n_ge = s.n_ge + s.r_ge)
+    def collect(s):
+        while s.t > 0:
+            yield s
+            s = update(s)
+    for _, or_or, cl_or, ob_or, ob_cl, ge_or, ge_ob in lst:
+        max_or = max(or_or, cl_or, ob_or, ge_or)
+        states = [State(t=time-1, n_or=1, r_or=1)]
+        best = 0
+        n = 0
+        while len(states) > 0:
+            n += 1
+            if n % 100000 == 0:
+                print(n, best)
+            if n == 30000000:
+                break
+            cur = states.pop()
+            if cur.t == 0:
+                best = max(best, cur.n_ge)
+                continue
+            times = {}
+            for S in collect(cur):
+                if 'ge' not in times and S.n_or >= ge_or and S.n_ob >= ge_ob:
+                    times['ge'] = update(S._replace(
+                        n_or = S.n_or - ge_or,
+                        n_ob = S.n_ob - ge_ob
+                    ))._replace(r_ge = S.r_ge + 1)
+                if 'ob' not in times and S.n_or >= ob_or and S.n_cl >= ob_cl:
+                    times['ob'] = update(S._replace(
+                        n_or = S.n_or - ob_or,
+                        n_cl = S.n_cl - ob_cl
+                    ))._replace(r_ob = S.r_ob + 1)
+                if 'cl' not in times and S.n_or >= cl_or and S.r_cl < ob_cl:
+                    times['cl'] = update(S._replace(n_or = S.n_or - cl_or))\
+                        ._replace(r_cl = S.r_cl + 1)
+                if 'or' not in times and S.n_or >= or_or and S.r_or < max_or:
+                    times['or'] = update(S._replace(n_or = S.n_or - or_or))\
+                        ._replace(r_or = S.r_or + 1)
+            times['end'] = update(S)
+
+            for key in ('ob', 'ge', 'cl', 'or', 'end'):
+                if key in times:
+                    states.append(times[key])
+        yield best
+
+def day_19a(s):
+    '''
+    >>> day_19a(day_19_test_input)
+    33
+    '''
+    res = day_19_common(re_lines(day_19_regex, s), 24)
+    return sum(best*i for best, i in enumerate(res, 1))
+
+def day_19b(s):
+    '''
+    >>> day_19b(day_19_test_input)
+    '''
+    return prod(day_19_common(re_lines(day_19_regex, s)[:3], 32))
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
