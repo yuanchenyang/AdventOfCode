@@ -9,8 +9,8 @@ from collections import deque, namedtuple
 from operator import *
 
 # Other Libraries
-from sympy import Interval, Union
-from z3 import Int, Solver, And, Or
+import z3
+import sympy as sp
 
 # Local Imports
 from utils import *
@@ -459,10 +459,10 @@ def day_15a(s, y=2000000):
     >>> day_15a(day_15_test_input, y=10)
     26
     '''
-    intervals = [Interval(si[0] - r, si[0] + r)
+    intervals = [sp.Interval(si[0] - r, si[0] + r)
                  for si, r in day_15_common(s, lambda x: -abs(x[1] - y)).items()
                  if r > 0]
-    return Union(*intervals).measure
+    return sp.Union(*intervals).measure
 
 def day_15b(s, limit=4000000):
     '''
@@ -470,21 +470,21 @@ def day_15b(s, limit=4000000):
     56000011
     '''
     sensors = day_15_common(s, lambda x: 0)
-    x, y = Int('x'), Int('y')
-    s = Solver()
+    x, y = z3.Int('x'), z3.Int('y')
+    s = z3.Solver()
     s.add(x >= 0, y >= 0, x <= limit, y <= limit)
     for (sx, sy), d in sensors.items():
-        s.add(Or(   (x-sx) + (y-sy) > d
-                 , -(x-sx) - (y-sy) > d
-                 ,  (x-sx) - (y-sy) > d
-                 , -(x-sx) + (y-sy) > d))
+        s.add(z3.Or(   (x-sx) + (y-sy) > d
+                    , -(x-sx) - (y-sy) > d
+                    ,  (x-sx) - (y-sy) > d
+                    , -(x-sx) + (y-sy) > d))
     s.check()
     return s.model().evaluate(x*4000000 + y)
 
 day_16_regex = 'Valve (\w\w) has flow rate=(\d+); tunnels* leads* to valves* ([\w, ]+)'
-Node = namedtuple('Node', ('rate', 'dests'))
 
 def day_16_common(s):
+    Node = namedtuple('Node', ('rate', 'dests'))
     nodes = {src: Node(rate, tunnels.split(', '))
              for src, rate, tunnels in re_lines(day_16_regex, s)}
     init = frozenset(label for label, node in nodes.items() if node.rate > 0)
@@ -512,62 +512,37 @@ def day_16b(s):
     >>> day_16b(day_16_test_input)
     1707
     '''
+    T = 24
     nodes, init = day_16_common(s)
-    @cache
+    vs = {(p, t, n): z3.Bool(f'{p}_{t}_{n}')
+          for p in 'CE' for t in range(T+1) for n in nodes}
+    on = {(n, t): z3.Bool(f'{n}_{t}') for n in init for t in range(T+1)}
 
-    def solve(cur, ele, time, off):
-        if time == 0 or len(off) == 0:
-            return 0
-        sols = [solve(cd, ed, time-1, off, cur, ele)
-                for cd in nodes[cur].dests for ed in nodes[ele].dests]
-        match cur in off, ele in off:
-            case True, True:
-                S = set([cur, ele])
-                sols.append((time - 1) * sum(nodes[v].rate for v in S) + \
-                            solve(cur, ele, time-1, off - S))
-            case True, False:
-                sols.extend((time - 1) * nodes[cur].rate \
-                            + solve(cur, ed, time-1, off - set([cur]))
-                                  for ed in nodes[ele].dests)
-            case False, True:
-                sols.extend((time - 1) * nodes[ele].rate \
-                            + solve(cd, ele, time-1, off - set([ele]))
-                                  for cd in nodes[cur].dests)
-        return max(sols)
-    return solve('AA', 'AA', 26, init)
+    opt = z3.Optimize()
+    exactly1 = lambda lst: z3.PbEq([(i, 1) for i in lst], 1)
+    for n in init:
+        opt.add(on[n, T] == False)
+        for t0, t1 in pairwise(range(T+1)):
+            opt.add(z3.Implies(on[(n, t0)], on[(n, t1)]))
+    for (p, t, n), var in vs.items():
+        if t == 0: continue
+        dests = [vs[(p, t-1, d)] for d in nodes[n].dests]
+        if n in init: # Maybe turn on
+            dests.append(z3.If(on[(n, t)],False,
+                               z3.And(on[(n, t-1)], vs[(p, t-1, n)])))
+            breakpoint()
+        opt.add(z3.Xor(var, exactly1(dests)))
+    opt.add(vs[('C', 24, 'AA')] == True)
+    opt.add(vs[('E', 24, 'AA')] == True)
 
-def prune(dests, it):
-    return [d for d in dests if d != it]
+    cost = sum(z3.If(v, nodes[n].rate, 0) for (n, t), v in on.items())
+    h = opt.maximize(cost)
+    opt.check()
+    m = opt.model()
+    for i, v in on.items():
+        print(i, m.evaluate(v))
+    return opt.lower(h)
 
-def day_16b(s):
-    '''
-    >>> day_16b(day_16_test_input)
-    1707
-    '''
-    nodes, init = day_16_common(s)
-
-    @cache
-    def solve(cur, ele, cprev, eprev, time, off):
-        if time == 0 or len(off) == 0:
-            return 0
-        sols = [solve(cd, ed, cur, ele, time-1, off)
-                for cd in prune(nodes[cur].dests, cprev)
-                for ed in prune(nodes[ele].dests, eprev)]
-        match cur in off, ele in off:
-            case True, True:
-                S = set([cur, ele])
-                sols.append((time - 1) * sum(nodes[v].rate for v in S) + \
-                            solve(cur, ele, cur, ele, time-1, off - S))
-            case True, False:
-                sols.extend((time - 1) * nodes[cur].rate \
-                            + solve(cur, ed, cur, ele, time-1, off - set([cur]))
-                                  for ed in prune(nodes[ele].dests, eprev))
-            case False, True:
-                sols.extend((time - 1) * nodes[ele].rate \
-                            + solve(cd, ele, cur, ele, time-1, off - set([ele]))
-                                  for cd in prune(nodes[cur].dests, cprev))
-        return max(sols) if len(sols) > 0 else 0
-    return solve('AA', 'AA', 'AA', 'AA', 26, init)
 
 def day_17_common(s, n, n_history=100):
     blocks = cycle(enumerate([(P(0, 0), P(1, 0), P(2, 0), P(3, 0))
@@ -688,20 +663,18 @@ def day_19_common(lst, time):
         while s.t > 0:
             yield s
             s = update(s)
+    def upper_bound(s):
+        return s.n_ge + (s.t)*(s.t-1)//2 + s.t*s.r_ge
     for _, or_or, cl_or, ob_or, ob_cl, ge_or, ge_ob in lst:
         max_or = max(or_or, cl_or, ob_or, ge_or)
         states = [State(t=time-1, n_or=1, r_or=1)]
         best = 0
-        n = 0
         while len(states) > 0:
-            n += 1
-            if n % 100000 == 0:
-                print(n, best, states)
-            if n == 30000000:
-                break
             cur = states.pop()
             if cur.t == 0:
                 best = max(best, cur.n_ge)
+                continue
+            if upper_bound(cur) <= best:
                 continue
             times = {}
             for S in collect(cur):
@@ -710,7 +683,8 @@ def day_19_common(lst, time):
                         n_or = S.n_or - ge_or,
                         n_ob = S.n_ob - ge_ob
                     ))._replace(r_ge = S.r_ge + 1)
-                if 'ob' not in times and S.n_or >= ob_or and S.n_cl >= ob_cl:
+                if 'ob' not in times and S.n_or >= ob_or and S.n_cl >= ob_cl\
+                   and S.r_ob < ge_ob:
                     times['ob'] = update(S._replace(
                         n_or = S.n_or - ob_or,
                         n_cl = S.n_cl - ob_cl
@@ -722,7 +696,6 @@ def day_19_common(lst, time):
                     times['or'] = update(S._replace(n_or = S.n_or - or_or))\
                         ._replace(r_or = S.r_or + 1)
             times['end'] = update(S)
-
             for key in ('ob', 'cl', 'or', 'ge', 'end'):
                 if key in times:
                     states.append(times[key])
@@ -739,6 +712,7 @@ def day_19a(s):
 def day_19b(s):
     '''
     >>> day_19b(day_19_test_input)
+    3472
     '''
     return prod(day_19_common(re_lines(day_19_regex, s)[:3], 32))
 
