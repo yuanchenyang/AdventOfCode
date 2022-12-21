@@ -750,7 +750,7 @@ def day_21_common(s):
         if type(expr) == str:
             a, op, b = expr.split()
             return f'(({expand(a, env)}) {op} ({expand(b, env)}))'
-        return expr
+        return f'sp.sympify({expr})'
     return expand, env
 
 def day_21a(s):
@@ -771,7 +771,7 @@ def day_21b(s):
     env['root'] = f'{a} - {b}'
     x = sp.symbols('x')
     env['humn'] = x
-    return round(sp.solve(eval(expand('root', env)), x)[0])
+    return sp.solve(eval(expand('root', env)), x)[0]
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
