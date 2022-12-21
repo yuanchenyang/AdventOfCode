@@ -742,6 +742,37 @@ def day_20b(s):
     '''
     return day_20_common(s, 811589153, 10)
 
+def day_21_common(s):
+    env = dict(Array(s, ': '))
+    def expand(expr, env):
+        if expr in env:
+            return expand(env[expr], env)
+        if type(expr) == str:
+            a, op, b = expr.split()
+            return f'(({expand(a, env)}) {op} ({expand(b, env)}))'
+        return expr
+    return expand, env
+
+def day_21a(s):
+    '''
+    >>> day_21a(day_21_test_input)
+    152
+    '''
+    expand, env = day_21_common(s.replace('/', '//'))
+    return eval(expand('root', env))
+
+def day_21b(s):
+    '''
+    >>> day_21b(day_21_test_input)
+    301
+    '''
+    expand, env = day_21_common(s)
+    a, _, b = env['root'].split()
+    env['root'] = f'{a} - {b}'
+    x = sp.symbols('x')
+    env['humn'] = x
+    return round(sp.solve(eval(expand('root', env)), x)[0])
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
