@@ -10,6 +10,7 @@ from operator import *
 
 # Other Libraries
 import z3
+import picos as pic
 import sympy as sp
 
 # Local Imports
@@ -507,42 +508,77 @@ def day_16a(s):
         return max(sols)
     return solve('AA', 30, init)
 
+def day_16b_z3(s):
+    '''
+    >>> day_16b(day_16_test_input)
+    1707
+    '''
+    T = 24
+    ps = 'CE'
+    nodes, init = day_16_common(s)
+
+    vs = {(p, t, n): z3.Int(f'{p}_{t}_{n}')
+          for p in ps for t in range(T+1) for n in nodes}
+    on = {(n, t): z3.Int(f'{n}_{t}') for n in init for t in range(T)}
+    opt = z3.Optimize()
+    for (n, t), v in on.items():
+        opt.add(v >= 0)
+        opt.add(v == sum(vs[(p, t, n)]*vs[(p, t+1, n)] for p in ps))
+    for n in init:
+        opt.add(sum(on[(n, t)] for t in range(T)) <= 1)
+    for (p, t, n), var in vs.items():
+        opt.add(var >= 0, var <= 1)
+        if t == 0 or t == T: continue
+        dests = sum(vs[(p, t-1, d)] for d in nodes[n].dests)
+        # if n in init: # Maybe turn on
+        #     dests += on[(n, t-1)]
+        opt.add(dests == var)
+    for n in nodes:
+        for p in ps:
+            opt.add(vs[(p, T, n)] == (n == 'AA'))
+    cost = sum(z3.If(v == 1, nodes[n].rate*t, 0) for (n, t), v in on.items())
+    h = opt.maximize(cost)
+    m = opt.model()
+    opt.check()
+    # for i, v in on.items():
+    #     print(i, m.evaluate(v))
+    return opt.lower(h)
+
 def day_16b(s):
     '''
     >>> day_16b(day_16_test_input)
     1707
     '''
     T = 24
+    ps = 'CE'
     nodes, init = day_16_common(s)
-    vs = {(p, t, n): z3.Bool(f'{p}_{t}_{n}')
-          for p in 'CE' for t in range(T+1) for n in nodes}
-    on = {(n, t): z3.Bool(f'{n}_{t}') for n in init for t in range(T+1)}
 
+    vs = {(p, t, n): z3.Int(f'{p}_{t}_{n}')
+          for p in ps for t in range(T+1) for n in nodes}
+    on = {(n, t): z3.Int(f'{n}_{t}') for n in init for t in range(T)}
     opt = z3.Optimize()
-    exactly1 = lambda lst: z3.PbEq([(i, 1) for i in lst], 1)
+    for (n, t), v in on.items():
+        opt.add(v >= 0)
+        opt.add(v == sum(vs[(p, t, n)]*vs[(p, t+1, n)] for p in ps))
     for n in init:
-        opt.add(on[n, T] == False)
-        for t0, t1 in pairwise(range(T+1)):
-            opt.add(z3.Implies(on[(n, t0)], on[(n, t1)]))
+        opt.add(sum(on[(n, t)] for t in range(T)) <= 1)
     for (p, t, n), var in vs.items():
-        if t == 0: continue
-        dests = [vs[(p, t-1, d)] for d in nodes[n].dests]
-        if n in init: # Maybe turn on
-            dests.append(z3.If(on[(n, t)],False,
-                               z3.And(on[(n, t-1)], vs[(p, t-1, n)])))
-            breakpoint()
-        opt.add(z3.Xor(var, exactly1(dests)))
-    opt.add(vs[('C', 24, 'AA')] == True)
-    opt.add(vs[('E', 24, 'AA')] == True)
-
-    cost = sum(z3.If(v, nodes[n].rate, 0) for (n, t), v in on.items())
+        opt.add(var >= 0, var <= 1)
+        if t == 0 or t == T: continue
+        dests = sum(vs[(p, t-1, d)] for d in nodes[n].dests)
+        # if n in init: # Maybe turn on
+        #     dests += on[(n, t-1)]
+        opt.add(dests == var)
+    for n in nodes:
+        for p in ps:
+            opt.add(vs[(p, T, n)] == (n == 'AA'))
+    cost = sum(z3.If(v == 1, nodes[n].rate*t, 0) for (n, t), v in on.items())
     h = opt.maximize(cost)
-    opt.check()
     m = opt.model()
-    for i, v in on.items():
-        print(i, m.evaluate(v))
+    opt.check()
+    # for i, v in on.items():
+    #     print(i, m.evaluate(v))
     return opt.lower(h)
-
 
 def day_17_common(s, n, n_history=100):
     blocks = cycle(enumerate([(P(0, 0), P(1, 0), P(2, 0), P(3, 0))
@@ -758,7 +794,7 @@ def day_21a(s):
     >>> day_21a(day_21_test_input)
     152
     '''
-    expand, env = day_21_common(s.replace('/', '//'))
+    expand, env = day_21_common(s)
     return eval(expand('root', env))
 
 def day_21b(s):
@@ -772,6 +808,67 @@ def day_21b(s):
     x = sp.symbols('x')
     env['humn'] = x
     return sp.solve(eval(expand('root', env)), x)[0]
+
+def day_22_hardcode():
+    cube = [
+      ([P(50,50+i) for i in range(50)], [P(i,100) for i in range(50)], 2, 3)
+     ,([P(50,49-i) for i in range(50)], [P(0,100+i) for i in range(50)], 2, 2)
+     ,([P(50+i,0) for i in range(50)], [P(0,150+i) for i in range(50)], 3, 2)
+     ,([P(100+i,0) for i in range(50)], [P(i,199) for i in range(50)], 3, 1)
+     ,([P(100+i,49) for i in range(50)], [P(99,50+i) for i in range(50)], 1, 0)
+     ,([P(149,49-i) for i in range(50)], [P(99,100+i) for i in range(50)], 0, 0)
+     ,([P(49,150+i) for i in range(50)], [P(50+i,149) for i in range(50)], 0, 1)
+    ]
+    glue = {}
+    other = lambda d: (d+2) % 4
+    for l0, l1, d0, d1 in cube:
+        for p0, p1 in zip(l0, l1):
+            glue[(p0, d0)] = (p1, other(d1))
+            glue[(p1, d1)] = (p0, other(d0))
+    return glue
+
+def day_22_common(s, hardcode=False):
+    dirs = (P(1, 0), P(0, 1), P(-1, 0), P(0,-1))
+    turn = dict(R=1, L=-1)
+
+    l0, l1 = s.split('\n\n')
+    l0 = l0.split('\n')
+    l_max = max(map(len, l0))
+    grid = Grid('\n'.join(l.ljust(l_max) for l in l0))
+    cur, f = P(grid[0].index('.'), 0), 0
+
+    glue = day_22_hardcode()
+    def cube_hardcode(p, f):
+        return glue.get((p, f), (p + dirs[f], f))
+    def torus(p, f):
+        while grid.get(nxt := ((p + dirs[f]) % grid.dim)) == ' ':
+            p = nxt
+        return nxt, f
+    update = cube_hardcode if hardcode else torus
+
+    for i in chain(*re_lines('([RL]|\d+)', l1)):
+        if type(i) == int:
+            for _ in range(i):
+                nxt, nf = update(cur, f)
+                if grid.get(nxt) == '#': break
+                cur, f = nxt, nf
+        else:
+            f = (f + turn[i]) % len(dirs)
+    return 1000 * (cur[1]+1) + 4 * (cur[0]+1) + f
+
+def day_22a(s):
+    '''
+    >>> day_22a(day_22_test_input)
+    6032
+    '''
+    return day_22_common(s)
+
+def day_22b(s):
+    '''
+    >>> day_22b(open('inputs/22.in').read())
+    11451
+    '''
+    return day_22_common(s, hardcode=True)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

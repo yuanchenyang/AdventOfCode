@@ -10,6 +10,7 @@ class Grid:
         self.grid = [[Token(c) for c in row] for row in s.splitlines()]
         self.xlen = len(self.grid[0])
         self.ylen = len(self.grid)
+        self.dim = Point(self.xlen, self.ylen)
 
     def __getitem__(self, i):
         return self.grid[i]
@@ -45,6 +46,8 @@ class Point(tuple):
         return Point(*[-s for s in self])
     def __sub__(self, other):
         return self + (-other)
+    def __mod__(self, other):
+        return Point(*[s % o for s, o in zip(self,other)])
     def __repr__(self):
         return 'Point' + super().__repr__()
 
