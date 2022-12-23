@@ -51,8 +51,11 @@ class Point(tuple):
     def __repr__(self):
         return 'Point' + super().__repr__()
 
+# S, N, E, W
 cardinal_dirs = [Point(0, 1), Point(0, -1), Point(1,  0), Point(-1,  0)]
+# SE, NE, SW, NW
 ordinal_dirs =  [Point(1, 1), Point(1, -1), Point(-1, 1), Point(-1, -1)]
+# S, N, E, W, SE, NE, SW, NW
 all_dirs = cardinal_dirs + ordinal_dirs
 
 def l1_dist(x, y):

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import prod
 from itertools import zip_longest, pairwise, takewhile, islice, starmap, chain, cycle
 from functools import cmp_to_key, cache
-from collections import deque, namedtuple
+from collections import deque, namedtuple, defaultdict
 from operator import *
 
 # Other Libraries
@@ -869,6 +869,54 @@ def day_22b(s):
     11451
     '''
     return day_22_common(s, hardcode=True)
+
+def day_23_common(s, rounds=10, find_fixed=False):
+    S, N, E, W, SE, NE, SW, NW = all_dirs
+    valid = [(N, (N,NE,NW)), (S, (S,SE,SW)), (W, (W,NW,SW)), (E, (E,NE,SE))]
+
+    elves = set(P(x, y) for y, line in enumerate(List(s))
+                        for x, c in enumerate(line)
+                        if c == '#')
+    def no(elf, dirs):
+        return all((elf + d) not in elves for d in dirs)
+    for i in range(rounds):
+        proposed = defaultdict(list)
+        for elf in elves:
+            if no(elf, all_dirs):
+                proposed[elf].append(elf)
+                continue
+            for j in range(4):
+                d, dirs = valid[(i+j) % 4]
+                if no(elf, dirs):
+                    proposed[elf + d].append(elf)
+                    break
+            else:
+                proposed[elf].append(elf)
+        new = set()
+        for dest, sources in proposed.items():
+            if len(sources) == 1:
+                new.add(dest)
+            else:
+                new.update(sources)
+        if find_fixed and len(elves - new) == 0:
+            return i + 1
+        elves = new
+    Xs, Ys = zip(*elves)
+    return (max(Xs) - min(Xs) + 1) * (max(Ys) - min(Ys) + 1) - len(elves)
+
+def day_23a(s):
+    '''
+    >>> day_23a(day_23_test_input)
+    110
+    '''
+    return day_23_common(s)
+
+def day_23b(s):
+    '''
+    >>> day_23b(day_23_test_input)
+    20
+    '''
+    return day_23_common(s, rounds=50000, find_fixed=True)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
