@@ -1,12 +1,14 @@
 # Standard Library
 import doctest
 import sys
+import string
 from dataclasses import dataclass
 from math import prod
 from itertools import zip_longest, pairwise, takewhile, islice, starmap, chain, cycle
-from functools import cmp_to_key, cache
+from functools import cmp_to_key, cache, cached_property
 from collections import deque, namedtuple, defaultdict
 from operator import *
+from heapq import heappush, heappop
 
 # Other Libraries
 import z3
@@ -61,7 +63,7 @@ def day_2b(s):
           [1, 2, 0]]
     return sum(p2[p1[i]][outcome[j]] + 1 + outcome[j]*3 for i, j in Array(s))
 
-priorities = dict(zip(letters + upper_letters, range(1, 53)))
+priorities = dict(zip(string.ascii_letters, range(1, 53)))
 
 def day_3a(s):
     '''
@@ -357,7 +359,7 @@ def day_11b(s):
 
 def day_12_common(s, frontier):
     g = Grid(s)
-    elev = dict(zip(letters, range(26))) | dict(S=0, E=25)
+    elev = dict(zip(string.ascii_lowercase, range(26))) | dict(S=0, E=25)
     to_visit = deque((p, 0) for p, elem in g.iter_points() if elem in frontier)
     visited = set(map(first, to_visit))
 
@@ -508,49 +510,13 @@ def day_16a(s):
         return max(sols)
     return solve('AA', 30, init)
 
-def day_16b_z3(s):
-    '''
-    >>> day_16b(day_16_test_input)
-    1707
-    '''
-    T = 24
-    ps = 'CE'
-    nodes, init = day_16_common(s)
-
-    vs = {(p, t, n): z3.Int(f'{p}_{t}_{n}')
-          for p in ps for t in range(T+1) for n in nodes}
-    on = {(n, t): z3.Int(f'{n}_{t}') for n in init for t in range(T)}
-    opt = z3.Optimize()
-    for (n, t), v in on.items():
-        opt.add(v >= 0)
-        opt.add(v == sum(vs[(p, t, n)]*vs[(p, t+1, n)] for p in ps))
-    for n in init:
-        opt.add(sum(on[(n, t)] for t in range(T)) <= 1)
-    for (p, t, n), var in vs.items():
-        opt.add(var >= 0, var <= 1)
-        if t == 0 or t == T: continue
-        dests = sum(vs[(p, t-1, d)] for d in nodes[n].dests)
-        # if n in init: # Maybe turn on
-        #     dests += on[(n, t-1)]
-        opt.add(dests == var)
-    for n in nodes:
-        for p in ps:
-            opt.add(vs[(p, T, n)] == (n == 'AA'))
-    cost = sum(z3.If(v == 1, nodes[n].rate*t, 0) for (n, t), v in on.items())
-    h = opt.maximize(cost)
-    m = opt.model()
-    opt.check()
-    # for i, v in on.items():
-    #     print(i, m.evaluate(v))
-    return opt.lower(h)
-
 def day_16b(s):
     '''
     >>> day_16b(day_16_test_input)
     1707
     '''
-    T = 24
-    ps = 'CE'
+    T = 4
+    ps = 'C'
     nodes, init = day_16_common(s)
 
     vs = {(p, t, n): z3.Int(f'{p}_{t}_{n}')
@@ -558,25 +524,31 @@ def day_16b(s):
     on = {(n, t): z3.Int(f'{n}_{t}') for n in init for t in range(T)}
     opt = z3.Optimize()
     for (n, t), v in on.items():
-        opt.add(v >= 0)
+        opt.add(v >= 0, v <= 1)
         opt.add(v == sum(vs[(p, t, n)]*vs[(p, t+1, n)] for p in ps))
     for n in init:
         opt.add(sum(on[(n, t)] for t in range(T)) <= 1)
     for (p, t, n), var in vs.items():
         opt.add(var >= 0, var <= 1)
-        if t == 0 or t == T: continue
+        if t == 0: continue
         dests = sum(vs[(p, t-1, d)] for d in nodes[n].dests)
-        # if n in init: # Maybe turn on
-        #     dests += on[(n, t-1)]
+        if n in init: # Maybe turn on
+            dests += on[(n, t-1)]
+        if n == 'AA' and t == 3:
+            #breakpoint()
+            pass
         opt.add(dests == var)
     for n in nodes:
         for p in ps:
             opt.add(vs[(p, T, n)] == (n == 'AA'))
     cost = sum(z3.If(v == 1, nodes[n].rate*t, 0) for (n, t), v in on.items())
     h = opt.maximize(cost)
+    print(opt)
+    print(opt.check())
     m = opt.model()
-    opt.check()
     # for i, v in on.items():
+    #     print(i, m.evaluate(v))
+    # for i, v in vs.items():
     #     print(i, m.evaluate(v))
     return opt.lower(h)
 
@@ -917,6 +889,59 @@ def day_23b(s):
     20
     '''
     return day_23_common(s, rounds=50000, find_fixed=True)
+
+def day_24_common(s):
+    dirs = {'>': P(1, 0), '<': P(-1, 0), '^': P(0, -1), 'v': P(0, 1)}
+    bliz = defaultdict(list)
+    for y, line in enumerate(List(s)[1:-1]):
+        for x, c in enumerate(line[1:-1]):
+            if c != '.':
+                bliz[P(x, y)].append(dirs[c])
+    xmax, ymax = x+1, y+1
+    start, end = P(0, -1), P(x, ymax)
+    def spaces(bliz):
+        while True:
+            yield {P(x, y) for x in range(xmax) for y in range(ymax)
+                   if P(x, y) not in bliz} | set([start, end])
+            new_bliz = defaultdict(list)
+            for b, ds in bliz.items():
+                for d in ds:
+                    new_bliz[(b+d) % P(xmax, ymax)].append(d)
+            bliz = new_bliz
+    return LazyList(spaces(bliz)), start, end
+
+def day_24_search(spaces, start, end, start_time):
+    heuristic = lambda p: l1_dist(p, end)
+    to_visit = [(heuristic(start), start, start_time)]
+    visited = set()
+    while True:
+        h, cur, t = heappop(to_visit)
+        visited.add((h, cur, t))
+        if cur == end:
+            return t
+        for d in cardinal_dirs + [P(0,0)]:
+            if (new := cur + d) in spaces[t + 1]:
+                if (item := (t + 1 + heuristic(new), new, t + 1)) not in visited:
+                    heappush(to_visit, item)
+                    visited.add(item)
+
+def day_24a(s):
+    '''
+    >>> day_24a(day_24_test_input)
+    18
+    '''
+    spaces, start, end = day_24_common(s)
+    return day_24_search(spaces, start, end, 0)
+
+def day_24b(s):
+    '''
+    >>> day_24b(day_24_test_input)
+    54
+    '''
+    spaces, start, end = day_24_common(s)
+    t1 = day_24_search(spaces, start, end, 0)
+    t2 = day_24_search(spaces, end, start, t1)
+    return day_24_search(spaces, start, end, t2)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

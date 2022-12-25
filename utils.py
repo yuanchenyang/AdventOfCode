@@ -1,10 +1,8 @@
 import re
-from functools import reduce
+from functools import reduce, cache
 from operator import mul
 
-letters = 'abcdefghijklmnopqrstuvwxyz'
-upper_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-
+# Data structures
 class Grid:
     def __init__(self, s):
         self.grid = [[Token(c) for c in row] for row in s.splitlines()]
@@ -63,6 +61,18 @@ def l1_dist(x, y):
 
 def linf_dist(x, y):
     return max(abs(i) for i in (x-y))
+
+class LazyList:
+    def __init__(self, seq):
+        self.seq = iter(seq)
+    @cache
+    def __getitem__(self, i):
+        if i < 0: raise ValueError
+        for j in range(i):
+            self[j]
+        return next(self.seq)
+
+# Parsing
 
 def Token(t):
     try:
