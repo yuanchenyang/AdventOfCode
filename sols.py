@@ -927,12 +927,6 @@ def day_25a(s):
     lines, stod, dtos = day_25_common(s)
     return dtos(sum(stod(line) for line in lines))
 
-def day_25b(s):
-    '''
-    >>> day_25b(day_25_test_input)
-    '''
-    return day_25_common(s)
-
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
