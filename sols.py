@@ -12,7 +12,6 @@ from heapq import heappush, heappop
 
 # Other Libraries
 import z3
-import picos as pic
 import sympy as sp
 
 # Local Imports
@@ -500,7 +499,7 @@ def day_16a(s):
     '''
     nodes, init = day_16_common(s)
     @cache
-    def solve(cur, time, off):
+    def solve(cur, time, ele_time, off):
         if time == 0 or len(off) == 0:
             return 0
         sols = [solve(dest, time-1, off) for dest in nodes[cur].dests]
@@ -515,42 +514,46 @@ def day_16b(s):
     >>> day_16b(day_16_test_input)
     1707
     '''
-    T = 4
-    ps = 'C'
+    T = 26
     nodes, init = day_16_common(s)
+    inits = '|'.join(init)
+    State = namedtuple('State', ('cur', 'ele', 't', 'on', 'score'))
+    to_visit = [State('AA', 'AA', T, '', 0)]
+    visited = set()
+    best = 0
 
-    vs = {(p, t, n): z3.Int(f'{p}_{t}_{n}')
-          for p in ps for t in range(T+1) for n in nodes}
-    on = {(n, t): z3.Int(f'{n}_{t}') for n in init for t in range(T)}
-    opt = z3.Optimize()
-    for (n, t), v in on.items():
-        opt.add(v >= 0, v <= 1)
-        opt.add(v == sum(vs[(p, t, n)]*vs[(p, t+1, n)] for p in ps))
-    for n in init:
-        opt.add(sum(on[(n, t)] for t in range(T)) <= 1)
-    for (p, t, n), var in vs.items():
-        opt.add(var >= 0, var <= 1)
-        if t == 0: continue
-        dests = sum(vs[(p, t-1, d)] for d in nodes[n].dests)
-        if n in init: # Maybe turn on
-            dests += on[(n, t-1)]
-        if n == 'AA' and t == 3:
-            #breakpoint()
-            pass
-        opt.add(dests == var)
-    for n in nodes:
-        for p in ps:
-            opt.add(vs[(p, T, n)] == (n == 'AA'))
-    cost = sum(z3.If(v == 1, nodes[n].rate*t, 0) for (n, t), v in on.items())
-    h = opt.maximize(cost)
-    print(opt)
-    print(opt.check())
-    m = opt.model()
-    # for i, v in on.items():
-    #     print(i, m.evaluate(v))
-    # for i, v in vs.items():
-    #     print(i, m.evaluate(v))
-    return opt.lower(h)
+    def upper_bound(S):
+        rates = [nodes[i].rate for i in init if i not in S.on]
+        times = [i for i in range(S.t-1, 0, -1) for _ in range(2)]
+        return S.score + sum(map(mul, rates, times))
+
+    k = 0
+    while len(to_visit) > 0:
+        S = to_visit.pop()
+        best = max(best, S.score)
+        k += 1
+        if k % 10000 == 0:
+            print(k, best, S)
+        if S.t == 0 or upper_bound(S) <= best:
+            continue
+        curs = [S._replace(cur=dest) for dest in nodes[S.cur].dests]
+        if S.cur in inits and S.cur not in S.on :
+            curs.append(S._replace(score=S.score + (S.t-1) * nodes[S.cur].rate,
+                                   on=f'{S.on}|{S.cur}'))
+
+        sols = []
+        for C in curs:
+            sols.extend(C._replace(ele=dest) for dest in nodes[C.ele].dests)
+            if C.ele in inits and C.ele not in C.on :
+                sols.append(C._replace(score=C.score + (C.t-1) * nodes[C.ele].rate,
+                                       on=f'{C.on}|{C.ele}'))
+        for state in sols:
+            state = state._replace(t=state.t-1)
+            if state not in visited:
+                to_visit.append(state)
+                visited.add(state)
+    return best
+
 
 def day_17_common(s, n, n_history=100):
     blocks = cycle(enumerate([(P(0, 0), P(1, 0), P(2, 0), P(3, 0))
@@ -654,16 +657,15 @@ day_19_regex = 'Blueprint (\d+): Each ore robot costs (\d+) ore. '\
 'Each clay robot costs (\d+) ore. Each obsidian robot costs (\d+) ore and (\d+) clay. '\
 'Each geode robot costs (\d+) ore and (\d+) obsidian.'
 
-State = namedtuple(
-    'State',
-    ['t',                            # timestep
-     'n_or', 'n_cl', 'n_ob', 'n_ge', # no. of each resource at end of timestep t
-     'r_or', 'r_cl', 'r_ob', 'r_ge'  # no. of robots at end of timestep t
-     ],
-    defaults = [0]*8
-)
-
 def day_19_common(lst, time):
+    State = namedtuple(
+        'State',
+        ['t',                            # timestep
+         'n_or', 'n_cl', 'n_ob', 'n_ge', # no. of each resource at end of t
+         'r_or', 'r_cl', 'r_ob', 'r_ge'  # no. of robots at end of t
+         ],
+        defaults = [0]*8
+    )
     update = lambda s: s._replace(t = s.t - 1,
                                   n_or = s.n_or + s.r_or, n_cl = s.n_cl + s.r_cl,
                                   n_ob = s.n_ob + s.r_ob, n_ge = s.n_ge + s.r_ge)
@@ -826,7 +828,7 @@ def day_22_common(s, hardcode=False):
                 cur, f = nxt, nf
         else:
             f = (f + turn[i]) % len(dirs)
-    return 1000 * (cur[1]+1) + 4 * (cur[0]+1) + f
+    return 1000 * (second(cur)+1) + 4 * (first(cur)+1) + f
 
 def day_22a(s):
     '''

@@ -67,7 +67,7 @@ class LazyList:
         self.seq = iter(seq)
     @cache
     def __getitem__(self, i):
-        if i < 0: raise ValueError
+        if i < 0: raise IndexError('Index needs to be non-negative')
         for j in range(i):
             self[j]
         return next(self.seq)
