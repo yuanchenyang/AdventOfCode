@@ -490,70 +490,33 @@ def day_16_common(s):
     nodes = {src: Node(rate, tunnels.split(', '))
              for src, rate, tunnels in re_lines(day_16_regex, s)}
     init = frozenset(label for label, node in nodes.items() if node.rate > 0)
-    return nodes, init
+    @cache
+    def solve(time, off=None, cur='AA', e_time=0):
+        if off is None: off = init
+        if time == 0:
+            return 0
+        sols = [solve(time-1, off, dest, e_time) for dest in nodes[cur].dests]
+        if cur in off:
+            sols.append((time - 1) * nodes[cur].rate
+                        + solve(time - 1, off - set([cur]), cur, e_time))
+        if e_time > 0:
+            sols.append(solve(e_time, off))
+        return max(sols)
+    return solve
 
 def day_16a(s):
     '''
     >>> day_16a(day_16_test_input)
     1651
     '''
-    nodes, init = day_16_common(s)
-    @cache
-    def solve(cur, time, ele_time, off):
-        if time == 0 or len(off) == 0:
-            return 0
-        sols = [solve(dest, time-1, off) for dest in nodes[cur].dests]
-        if cur in off:
-            sols.append((time - 1) * nodes[cur].rate
-                        + solve(cur, time - 1, off - set([cur])))
-        return max(sols)
-    return solve('AA', 30, init)
+    return day_16_common(s)(30)
 
 def day_16b(s):
     '''
     >>> day_16b(day_16_test_input)
     1707
     '''
-    T = 26
-    nodes, init = day_16_common(s)
-    inits = '|'.join(init)
-    State = namedtuple('State', ('cur', 'ele', 't', 'on', 'score'))
-    to_visit = [State('AA', 'AA', T, '', 0)]
-    visited = set()
-    best = 0
-
-    def upper_bound(S):
-        rates = [nodes[i].rate for i in init if i not in S.on]
-        times = [i for i in range(S.t-1, 0, -1) for _ in range(2)]
-        return S.score + sum(map(mul, rates, times))
-
-    k = 0
-    while len(to_visit) > 0:
-        S = to_visit.pop()
-        best = max(best, S.score)
-        k += 1
-        if k % 10000 == 0:
-            print(k, best, S)
-        if S.t == 0 or upper_bound(S) <= best:
-            continue
-        curs = [S._replace(cur=dest) for dest in nodes[S.cur].dests]
-        if S.cur in inits and S.cur not in S.on :
-            curs.append(S._replace(score=S.score + (S.t-1) * nodes[S.cur].rate,
-                                   on=f'{S.on}|{S.cur}'))
-
-        sols = []
-        for C in curs:
-            sols.extend(C._replace(ele=dest) for dest in nodes[C.ele].dests)
-            if C.ele in inits and C.ele not in C.on :
-                sols.append(C._replace(score=C.score + (C.t-1) * nodes[C.ele].rate,
-                                       on=f'{C.on}|{C.ele}'))
-        for state in sols:
-            state = state._replace(t=state.t-1)
-            if state not in visited:
-                to_visit.append(state)
-                visited.add(state)
-    return best
-
+    return day_16_common(s)(26, e_time=26)
 
 def day_17_common(s, n, n_history=100):
     blocks = cycle(enumerate([(P(0, 0), P(1, 0), P(2, 0), P(3, 0))
