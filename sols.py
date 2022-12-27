@@ -908,6 +908,31 @@ def day_24b(s):
     t2 = day_24_search(spaces, end, start, t1)
     return day_24_search(spaces, start, end, t2)
 
+def day_25_common(s):
+    s2d = dict(zip('=-012', range(5)))
+    d2s = dict(zip(range(5), '=-012'))
+    def dtos_helper(d):
+        while d > 0:
+            d, r = (d+2) // 5, (d+2) % 5
+            yield d2s[r]
+    dtos = lambda d: ''.join(dtos_helper(d))[::-1]
+    stod = lambda n: sum((s2d[c]-2)*5**i for i, c in enumerate(reversed(n)))
+    return s.strip().split('\n'), stod, dtos
+
+def day_25a(s):
+    '''
+    >>> day_25a(day_25_test_input)
+    '2=-1=0'
+    '''
+    lines, stod, dtos = day_25_common(s)
+    return dtos(sum(stod(line) for line in lines))
+
+def day_25b(s):
+    '''
+    >>> day_25b(day_25_test_input)
+    '''
+    return day_25_common(s)
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         if sys.argv[1] == '-test':
